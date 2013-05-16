@@ -154,6 +154,7 @@
 (defvar os-backend-alist
   '(("github.com/\\(?:repos/\\)?[^/]+/[^/]+" . os-github-backend)
     ("bitbucket.org/[^/]+/[^/]+"             . os-bb-backend)
+    ("asana.com"                             . os-asana-backend)
     ("/projects/[^/]+"                       . os-rmine-backend)
     ("rememberthemilk.com"                   . os-rtm-backend))
   "Alist of url patterns vs corresponding org-sync backend.")
