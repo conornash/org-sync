@@ -16,14 +16,18 @@
 (defvar os-asana-url nil
   "URL of the tasks for your workspace.")
 
-(defun os-asana-base-url (url)
-  "Return proper URL."
-  "https://app.asana.com/api/1.0/")
+(defvar os-asana-base-url "https://app.asana.com/api/1.0/"
+  "Return proper URL.")
 
 (defun os-asana-fetch-buglist (last-update)
   "Fetch buglist from asana.com (anything that happened after LAST-UPDATE)"
   ;; a buglist is just a plist
-  (let* ((json (os-asana-fetch-json (concat os-asana-url "?assignee=me"))))
+  (let* ((json (os-asana-fetch-json (concat os-asana-base-url "workspaces/" os-asana-workspace-id "/tasks?assignee=me")))
+         (bugs (mapcar
+                '(lambda (x)  (os-asana-fetch-json (concat os-asana-base-url "tasks/" (number-to-string x))))
+                (mapcar
+                 '(lambda (x) (cdr (assoc 'id x)))
+                 (cdr (assoc 'data json))))))
 
     `(:title "Asana Tasks"
              :url ,os-base-url
@@ -35,7 +39,7 @@
 
              ;; bugs contains a list of bugs
              ;; a bug is a plist too
-             :bugs ,(mapcar 'os-asana-json-to-bug (cdr (assoc 'data json))))))
+             :bugs ,(mapcar 'os-asana-json-to-bug bugs))))
 
 
 (defun os-asana-fetch-json (url)
@@ -53,12 +57,18 @@
 (defun os-asana-json-to-bug (data)
   "Return DATA (in json) converted to a bug."
   (flet ((va (key alist) (cdr (assoc key alist)))
-         (v (key) (va key data)))
+         (v (key) (va key (cdr (assoc 'data data)))))
     (let* ((title (v 'name))
-           (id (v 'id)))
+           (id (v 'id))
+           (desc (v 'notes))
+           (status (cond
+                    ((eq (v 'completed) :json-false) 'open)
+                    ((eq (v 'completed) t) 'closed))))
 
       `(:id ,id
-            :title ,title))))
+            :title ,title
+            :status ,status
+            :desc ,desc))))
 
 ;; this overrides os--send-buglist
 (defun os-asana-send-buglist (buglist)
