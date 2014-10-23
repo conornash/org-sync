@@ -4,33 +4,33 @@
 (require 'os)
 (require 'json)
 
-(defvar os-asana-backend
-  '((base-url      . os-asana-base-url)
-    (fetch-buglist . os-asana-fetch-buglist)
-    (send-buglist  . os-asana-send-buglist))
+(defvar org-sync-asana-backend
+  '((base-url      . org-sync-asana-base-url)
+    (fetch-buglist . org-sync-asana-fetch-buglist)
+    (send-buglist  . org-sync-asana-send-buglist))
   "Asana backend.")
 
-(defvar os-asana-auth nil
+(defvar org-sync-asana-auth nil
   "Base64 encoded API key as username with Basic Authentication. Should look like: 'Basic 9sjOIJIJOIJ987HIUBI879'")
 
-(defvar os-asana-url nil
+(defvar org-sync-asana-url nil
   "URL of the tasks for your workspace.")
 
-(defvar os-asana-base-url "https://app.asana.com/api/1.0/"
+(defvar org-sync-asana-base-url "https://app.asana.com/api/1.0/"
   "Return proper URL.")
 
-(defun os-asana-fetch-buglist (last-update)
+(defun org-sync-asana-fetch-buglist (last-update)
   "Fetch buglist from asana.com (anything that happened after LAST-UPDATE)"
   ;; a buglist is just a plist
-  (let* ((json (os-asana-fetch-json (concat os-asana-base-url "workspaces/" os-asana-workspace-id "/tasks?assignee=me")))
+  (let* ((json (org-sync-asana-fetch-json (concat org-sync-asana-base-url "workspaces/" org-sync-asana-workspace-id "/tasks?assignee=me")))
          (bugs (mapcar
-                '(lambda (x)  (os-asana-fetch-json (concat os-asana-base-url "tasks/" (number-to-string x))))
+                '(lambda (x)  (org-sync-asana-fetch-json (concat org-sync-asana-base-url "tasks/" (number-to-string x))))
                 (mapcar
                  '(lambda (x) (cdr (assoc 'id x)))
                  (cdr (assoc 'data json))))))
 
     `(:title "Asana Tasks"
-             :url ,os-base-url
+             :url ,org-sync-base-url
 
              ;; add a :since property set to last-update if you return
              ;; only the bugs updated since it.  omit it or set it to
@@ -39,14 +39,14 @@
 
              ;; bugs contains a list of bugs
              ;; a bug is a plist too
-             :bugs ,(mapcar 'os-asana-json-to-bug bugs))))
+             :bugs ,(mapcar 'org-sync-asana-json-to-bug bugs))))
 
 
-(defun os-asana-fetch-json (url)
+(defun org-sync-asana-fetch-json (url)
   "Return a parsed JSON object of all the pages of URL."
   (let* ((url-request-method "GET")
          (url-request-extra-headers
-          `(("Authorization" . ,os-asana-auth)))
+          `(("Authorization" . ,org-sync-asana-auth)))
          (buf (url-retrieve-synchronously url)))
 
     (with-current-buffer buf
@@ -54,7 +54,7 @@
       (prog1 (json-read) (kill-buffer buf)))))
 
 
-(defun os-asana-json-to-bug (data)
+(defun org-sync-asana-json-to-bug (data)
   "Return DATA (in json) converted to a bug."
   (flet ((va (key alist) (cdr (assoc key alist)))
          (v (key) (va key (cdr (assoc 'data data)))))
@@ -70,20 +70,20 @@
             :status ,status
             :desc ,desc))))
 
-;; this overrides os--send-buglist
-(defun os-asana-send-buglist (buglist)
+;; this overrides org-sync--send-buglist
+(defun org-sync-asana-send-buglist (buglist)
   "Send BUGLIST to asana.com and return updated buglist"
   ;; here you should loop over :bugs in buglist
 
-  (dolist (b (os-get-prop :bugs buglist))
+  (dolist (b (org-sync-get-prop :bugs buglist))
     (cond
      ;; new bug (no id    json)))
-     ((null (os-get-prop :id b))
+     ((null (org-sync-get-prop :id b))
       (let* ((url-request-method "POST")
              (url-request-extra-headers
-              `(("Authorization" . ,os-asana-auth)))
-             (url-request-data (os-asana-bug-to-json b))
-             (buf (url-retrieve-synchronously os-asana-url))))
+              `(("Authorization" . ,org-sync-asana-auth)))
+             (url-request-data (org-sync-asana-bug-to-json b))
+             (buf (url-retrieve-synchronously org-sync-asana-url))))
 
       ;; else, modified bug
       ;;     (t
@@ -93,10 +93,10 @@
   ;; etc).  they will overwrite/be added in the buglist in os.el
   "Made it")
 
-(defun os-asana-bug-to-json (bug)
+(defun org-sync-asana-bug-to-json (bug)
   "Return BUG as JSON."
 
   (json-encode
-   `((name . ,(os-get-prop :title bug))
-     (notes . ,(os-get-prop :desc bug))
+   `((name . ,(org-sync-get-prop :title bug))
+     (notes . ,(org-sync-get-prop :desc bug))
      (assignee . "me"))))
